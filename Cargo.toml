@@ -1,5 +1,5 @@
 [package]
-name = "tests"
+name = "pastebin-server"
 version = "0.1.0"
 authors = ["hzqd <hzqdfs@gmail.com>"]
 edition = "2018"
@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 actix-web = "2"
 actix-rt = "1"
+actix-session = "0.3.0"
+serde = "1.0.104"
