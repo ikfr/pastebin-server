@@ -1,38 +1,66 @@
-use actix_web::{
-    get,
-    web,
-    App,
-    HttpServer,
-    Responder,
-    HttpRequest,
-    HttpResponse,
-};
-use serde::Deserialize;
-use actix_web::http::{header, Method, StatusCode};
+use actix_files as fs;
 use actix_session::Session;
-use redis::Commands;
+use actix_web::http::StatusCode;
+use actix_web::{get, http, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use rand::{distributions::Alphanumeric, Rng};
+use redis::{Commands, Connection};
+use serde::Deserialize;
+use std::sync::Mutex;
+use utils::kt_std::*;
+mod builder;
+mod utils;
 
-fn fetch_an_integer() -> redis::RedisResult<isize> {
-    // connect to redis
-    let client = redis::Client::open("redis://127.0.0.1/")?;
-    let mut con = client.get_connection()?;
-    // throw away the result, just make sure it does not fail
-    let _ : () = con.set("my_key", 42)?;
-    // read back the key and return it.  Because the return value
-    // from the function is a result for integer this will automatically
-    // convert into one.
-    con.get("my_key")
-}
+#[macro_use]
+extern crate lazy_static;
 
 #[derive(Deserialize)]
-struct Register {
-    username: String,
-    country: String,
+struct Paste {
+    content: String,
 }
 
-async fn register(req: HttpRequest, form: web::Form<Register>) -> impl Responder {
-    println!("{:?}", req);
-    format!("Hello {} from {}!", form.username, form.country)
+lazy_static! {
+    static ref REDIS_CLIENT: Mutex<Connection> =
+        Mutex::new(builder::redis_client::build("redis://127.0.0.1/"));
+}
+
+#[actix_rt::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new()
+            .service(index)
+            .service(favicon)
+            .service(paste_handler)
+            .service(query_handler)
+    })
+    .bind("0.0.0.0:8080")?
+    .run()
+    .await
+}
+
+#[get("/favicon.ico")]
+async fn favicon() -> fs::NamedFile {
+    fs::NamedFile::open("public/static/favicon.ico").unwrap()
+}
+
+#[get("/{id}")]
+async fn query_handler(req: HttpRequest, id: web::Path<String>) -> impl Responder {
+    println!("{:?}", id);
+    match id.len() {
+        5 => return get_paste(&id),
+        _ => return format!("Nah"),
+    }
+}
+
+#[post("/paste")]
+async fn paste_handler(req: HttpRequest, paste: web::Form<Paste>) -> impl Responder {
+    let key = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(5)
+        .collect::<String>();
+    set_paste(&key, &paste);
+    HttpResponse::Found()
+        .header(http::header::LOCATION, format!("/{}", key))
+        .finish()
 }
 
 #[get("/")]
@@ -43,20 +71,15 @@ async fn index(session: Session, req: HttpRequest) -> HttpResponse {
         .body(include_str!("../public/index.html"))
 }
 
-async fn getest(session: Session, req: HttpRequest) -> HttpResponse {
-    HttpResponse::build(StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../public/index.html"))
+fn set_paste(key: &String, paste: &web::Form<Paste>) -> redis::RedisResult<()> {
+    let _: () = REDIS_CLIENT.lock().unwrap().set(key, &paste.content)?;
+    Ok(())
 }
 
-
-#[actix_rt::main]
-async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| App::new()
-        .service(index)
-        .route("register", web::get().to(register))
-    )
-        .bind("127.0.0.1:8080")?
-        .run()
-        .await
+fn get_paste(key: &String) -> String {
+    REDIS_CLIENT
+        .lock()
+        .unwrap()
+        .get(key)
+        .unwrap_or("None".to_string())
 }
