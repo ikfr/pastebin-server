@@ -7,6 +7,7 @@ use redis::{Commands, Connection};
 use serde::Deserialize;
 use std::sync::Mutex;
 use utils::kt_std::*;
+
 mod builder;
 mod utils;
 
@@ -32,9 +33,9 @@ async fn main() -> std::io::Result<()> {
             .service(paste_handler)
             .service(query_handler)
     })
-    .bind("0.0.0.0:8080")?
-    .run()
-    .await
+        .bind("0.0.0.0:8080")?
+        .run()
+        .await
 }
 
 #[get("/favicon.ico")]
@@ -46,21 +47,23 @@ async fn favicon() -> fs::NamedFile {
 async fn query_handler(req: HttpRequest, id: web::Path<String>) -> impl Responder {
     println!("{:?}", id);
     match id.len() {
-        5 => return get_paste(&id),
-        _ => return format!("Nah"),
+        5 => get_paste(&id),
+        _ => format!("Nah"),
     }
 }
 
 #[post("/paste")]
 async fn paste_handler(req: HttpRequest, paste: web::Form<Paste>) -> impl Responder {
-    let key = rand::thread_rng()
+    rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(5)
-        .collect::<String>();
-    set_paste(&key, &paste);
-    HttpResponse::Found()
-        .header(http::header::LOCATION, format!("/{}", key))
-        .finish()
+        .collect::<String>()
+        .let_imut(|key| {
+            set_paste(&key, &paste);
+            HttpResponse::Found()
+                .header(http::header::LOCATION, format!("/{}", key))
+                .finish()
+        })
 }
 
 #[get("/")]
