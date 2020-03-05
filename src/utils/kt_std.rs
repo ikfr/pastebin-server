@@ -1,5 +1,5 @@
-pub trait Let {
-    fn let_imut<R, F>(&self, block: F) -> R
+pub trait KtStd {
+    fn let_ref<R, F>(&self, block: F) -> R
     where
         F: FnOnce(&Self) -> R;
 
@@ -11,10 +11,18 @@ pub trait Let {
     where
         Self: Sized,
         F: FnOnce(Self) -> R;
+
+    fn also_ref<F>(&self, block: F) -> &Self
+    where
+        F: FnOnce(&Self);
+
+    fn also_mut<F>(&mut self, block: F) -> &mut Self
+    where
+        F: FnMut(&mut Self);
 }
 
-impl<T> Let for T {
-    fn let_imut<R, F>(&self, block: F) -> R
+impl<T> KtStd for T {
+    fn let_ref<R, F>(&self, block: F) -> R
     where
         F: FnOnce(&Self) -> R,
     {
@@ -34,5 +42,21 @@ impl<T> Let for T {
         F: FnOnce(Self) -> R,
     {
         block(self)
+    }
+
+    fn also_ref<F>(&self, block: F) -> &Self
+    where
+        F: FnOnce(&Self),
+    {
+        block(self);
+        self
+    }
+
+    fn also_mut<F>(&mut self, mut block: F) -> &mut Self
+    where
+        F: FnMut(&mut Self),
+    {
+        block(self);
+        self
     }
 }

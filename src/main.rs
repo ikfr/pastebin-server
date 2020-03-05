@@ -63,11 +63,11 @@ async fn query_handler(req: HttpRequest, id: web::Path<String>) -> impl Responde
     PasteResult {
         url: &req
             .connection_info()
-            .let_imut(|ctx| format!("{}://{}", ctx.scheme(), ctx.host())),
+            .let_ref(|ctx| format!("{}://{}", ctx.scheme(), ctx.host())),
         id: &req.uri().to_string(),
         content: &get_paste(&id),
     }
-    .let_imut(|paste_result| {
+    .let_ref(|paste_result| {
         HttpResponse::build(StatusCode::OK)
             .content_type("text/html; charset=utf-8")
             .body(paste_result.render().unwrap())
@@ -86,7 +86,7 @@ async fn paste_handler(req: HttpRequest, paste: web::Form<Paste>) -> impl Respon
         .sample_iter(&Alphanumeric)
         .take(5)
         .collect::<String>()
-        .let_imut(|key| {
+        .let_ref(|key| {
             set_paste(&key, &paste);
             HttpResponse::Found()
                 .header(http::header::LOCATION, format!("/{}", key))
