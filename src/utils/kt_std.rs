@@ -23,3 +23,13 @@ pub trait KtStd {
 }
 
 impl <T> KtStd for T {}
+
+trait IterExt<T> {
+    fn on_each(&self, f: impl Fn(&T)) -> &Self;
+}
+
+impl<T> IterExt<T> for Vec<T> {
+    fn on_each(&self, f: impl Fn(&T)) -> &Self {
+        self.also_ref(|v| v.iter().for_each(|e| f(e)))
+    }
+}
