@@ -20,11 +20,21 @@ pub trait KtStd {
         block(self);
         self
     }
+    
+    fn also_ref_ret_owned(self, block: impl FnOnce(&Self)) -> Self where Self: Sized {
+        block(&self);
+        self
+    }
+    
+    fn also_mut_ret_owned(mut self, mut block: impl FnMut(&mut Self)) -> Self where Self: Sized {
+        block(&mut self);
+        self
+    }
 }
 
 impl <T> KtStd for T {}
 
-trait IterExt<T> {
+pub trait IterExt<T> {
     fn on_each(&self, f: impl Fn(&T)) -> &Self;
 }
 
